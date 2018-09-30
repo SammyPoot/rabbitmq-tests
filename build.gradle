@@ -1,11 +1,25 @@
+buildscript {
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.0.2.RELEASE")
+    }
+}
+
 plugins {
     id 'java'
+    id 'application'
 }
+apply plugin: 'org.springframework.boot'
 
 group 'uk.gov.ons.fwmt'
 version '1.0-SNAPSHOT'
 
 sourceCompatibility = 1.8
+
+bootJar {
+    group = 'uk.gov.ons.fwmt'
+    baseName = 'rabitmq-tests'
+    version = version
+}
 
 repositories {
     mavenCentral()

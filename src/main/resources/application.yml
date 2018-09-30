@@ -1,0 +1,27 @@
+server:
+  port: 9999
+
+spring:
+  application:
+    name: rabbitmq-tests
+  rabbitmq:
+    username: guest
+    password: guest
+    host: localhost
+    port: 5672
+    virtualhost: /
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-interval: 45000
+          multiplier: 3
+          initial-interval: 2000
+          max-attempts: 3
+
+management.endpoint.health.show-details: always
+
+security.user:
+  name: "user"
+  password: "password"
+
