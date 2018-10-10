@@ -27,22 +27,6 @@ import static uk.gov.ons.fwmt.fwmtgatewaycommon.config.QueueNames.JOB_SVC_ADAPTE
 public class QueueConfig {
 
     @Bean
-    Queue adapterQueue() {
-        return QueueBuilder.durable(QueueNames.JOBSVC_TO_ADAPTER_QUEUE)
-                .withArgument("x-dead-letter-exchange", "")
-                .withArgument("x-dead-letter-routing-key", JOB_SVC_ADAPTER_DLQ)
-                .build();
-    }
-
-    @Bean
-    Queue jobsvcQueue() {
-        return QueueBuilder.durable(QueueNames.ADAPTER_TO_JOBSVC_QUEUE)
-                .withArgument("x-dead-letter-exchange", "")
-                .withArgument("x-dead-letter-routing-key", ADAPTER_JOB_SVC_DLQ)
-                .build();
-    }
-
-    @Bean
     public Queue adapterDeadLetterQueue() {
         return QueueBuilder.durable(ADAPTER_JOB_SVC_DLQ).build();
     }
@@ -58,18 +42,45 @@ public class QueueConfig {
     }
 
     @Bean
-    public Binding adapterBinding(@Qualifier("adapterQueue") Queue queue, TopicExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(QueueNames.JOB_SVC_RESPONSE_ROUTING_KEY);
+    public Binding adapterBinding(TopicExchange exchange) {
+        Queue adapterQueue = QueueBuilder.durable(QueueNames.JOBSVC_TO_ADAPTER_QUEUE)
+                .withArgument("x-dead-letter-exchange", "")
+                .withArgument("x-dead-letter-routing-key", JOB_SVC_ADAPTER_DLQ)
+                .build();
+        return BindingBuilder.bind(adapterQueue).to(exchange).with(QueueNames.JOB_SVC_RESPONSE_ROUTING_KEY);
     }
 
     @Bean
-    public Binding jobsvcBinding(@Qualifier("jobsvcQueue") Queue queue, TopicExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(QueueNames.JOB_SVC_REQUEST_ROUTING_KEY);
+    public Binding jobsvcBinding(TopicExchange exchange) {
+        Queue jobsvcQueue = QueueBuilder.durable(QueueNames.ADAPTER_TO_JOBSVC_QUEUE)
+                .withArgument("x-dead-letter-exchange", "")
+                .withArgument("x-dead-letter-routing-key", ADAPTER_JOB_SVC_DLQ)
+                .build();
+        return BindingBuilder.bind(jobsvcQueue).to(exchange).with(QueueNames.JOB_SVC_REQUEST_ROUTING_KEY);
     }
 
     @Bean
     public SimpleMessageListenerContainer container(ConnectionFactory connectionFactory,
-                                                    MessageListenerAdapter listenerAdapter, RetryOperationsInterceptor interceptor) {
+                                                    @Qualifier("listenerAdapter") MessageListenerAdapter listenerAdapter,
+                                                    RetryOperationsInterceptor interceptor) {
+
+        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
+
+        Advice[] adviceChain = {interceptor};
+
+        container.setAdviceChain(adviceChain);
+        container.setConnectionFactory(connectionFactory);
+        container.setQueueNames(QueueNames.ADAPTER_TO_JOBSVC_QUEUE);
+        container.setMessageListener(listenerAdapter);
+//        container.setConcurrentConsumers(5);
+        return container;
+    }
+
+    @Bean
+    public SimpleMessageListenerContainer container2(ConnectionFactory connectionFactory,
+                                                    @Qualifier("listenerAdapter2") MessageListenerAdapter listenerAdapter,
+                                                    RetryOperationsInterceptor interceptor) {
+
         SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
 
         Advice[] adviceChain = {interceptor};
@@ -84,6 +95,12 @@ public class QueueConfig {
     @Bean
     public MessageListenerAdapter listenerAdapter(Receiver receiver) {
         MessageListenerAdapter listenerAdapter = new MessageListenerAdapter(receiver, "receiveMessage");
+        return listenerAdapter;
+    }
+
+    @Bean
+    public MessageListenerAdapter listenerAdapter2(Receiver receiver) {
+        MessageListenerAdapter listenerAdapter = new MessageListenerAdapter(receiver, "receiveMessage2");
         return listenerAdapter;
     }
 
